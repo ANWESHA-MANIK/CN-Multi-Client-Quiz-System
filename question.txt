@@ -1,0 +1,4 @@
+What is the capital of India?|Delhi
+2 + 2 = ?|4
+Which protocol is used for web?|HTTP
+TCP full form?|Transmission Control Protocol
