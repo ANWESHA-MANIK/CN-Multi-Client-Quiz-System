@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Server</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 2rem;
+        }
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .status-bar {
+            background: rgba(255,255,255,0.1);
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+        .question-display {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            margin-bottom: 2rem;
+        }
+        .question-display h2 {
+            color: #1e3c72;
+            margin-bottom: 1rem;
+        }
+        .question-text {
+            font-size: 1.5rem;
+            color: #333;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #2a5298;
+        }
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .btn-primary {
+            background: #2a5298;
+            color: white;
+        }
+        .scores-section {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .scores-section h3 {
+            color: #1e3c72;
+            margin-bottom: 1rem;
+        }
+        .scores-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .scores-table th, .scores-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        .scores-table th {
+            background: #f8f9fa;
+            color: #1e3c72;
+        }
+        .scores-table tr:hover {
+            background: #f8f9fa;
+        }
+        .score-cell {
+            font-weight: 600;
+            color: #2a5298;
+        }
+        .empty-state {
+            text-align: center;
+            color: #666;
+            padding: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Quiz Server Control</h1>
+            <p>Manage your live quiz session</p>
+        </div>
+        
+        <div class="status-bar">
+            <span id="question-status">Question: 1 / 5</span>
+            <span id="client-count">Connected Clients: 0</span>
+        </div>
+        
+        <div class="question-display">
+            <h2>Current Question</h2>
+            <div class="question-text" id="current-question">
+                Waiting for quiz to start...
+            </div>
+            <div class="controls">
+                <button class="btn btn-primary" onclick="nextQuestion()">Next Question</button>
+            </div>
+        </div>
+        
+        <div class="scores-section">
+            <h3>Live Scores</h3>
+            <table class="scores-table">
+                <thead>
+                    <tr>
+                        <th>Player</th>
+                        <th>Score</th>
+                    </tr>
+                </thead>
+                <tbody id="scores-body">
+                    <tr>
+                        <td colspan="2" class="empty-state">No clients connected yet</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        const socket = io('/server');
+        
+        socket.on('connect', () => {
+            console.log('Connected to server namespace');
+        });
+        
+        socket.on('init_data', (data) => {
+            updateScores(data.scores);
+            document.getElementById('question-status').textContent = `Question: ${data.current_question} / ${data.total_questions}`;
+            updateQuestionDisplay(data.current_question);
+        });
+        
+        socket.on('score_update', (data) => {
+            updateScoreRow(data.name, data.score);
+            document.getElementById('question-status').textContent = `Question: ${data.question}`;
+        });
+        
+        socket.on('client_joined', (data) => {
+            addClientRow(data.name, data.score);
+            updateClientCount();
+        });
+        
+        socket.on('client_left', (data) => {
+            removeClientRow(data.name);
+            updateClientCount();
+        });
+        
+        socket.on('question_changed', (data) => {
+            document.getElementById('question-status').textContent = `Question: ${data.current_question}`;
+            updateQuestionDisplay(data.current_question);
+        });
+        
+        function updateScores(scores) {
+            const tbody = document.getElementById('scores-body');
+            tbody.innerHTML = '';
+            
+            const entries = Object.entries(scores);
+            if (entries.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2" class="empty-state">No clients connected yet</td></tr>';
+                return;
+            }
+            
+            entries.sort((a, b) => b[1] - a[1]).forEach(([name, score]) => {
+                const row = tbody.insertRow();
+                row.id = `client-${name}`;
+                row.innerHTML = `
+                    <td>${name}</td>
+                    <td class="score-cell">${score}</td>
+                `;
+            });
+            
+            updateClientCount();
+        }
+        
+        function updateScoreRow(name, score) {
+            let row = document.getElementById(`client-${name}`);
+            if (!row) {
+                addClientRow(name, score);
+                row = document.getElementById(`client-${name}`);
+            }
+            row.querySelector('.score-cell').textContent = score;
+            
+            const tbody = document.getElementById('scores-body');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.sort((a, b) => {
+                const scoreA = parseInt(a.querySelector('.score-cell').textContent);
+                const scoreB = parseInt(b.querySelector('.score-cell').textContent);
+                return scoreB - scoreA;
+            });
+            rows.forEach(r => tbody.appendChild(r));
+        }
+        
+        function addClientRow(name, score) {
+            const tbody = document.getElementById('scores-body');
+            const emptyRow = tbody.querySelector('.empty-state');
+            if (emptyRow) emptyRow.remove();
+            
+            const row = document.getElementById(`client-${name}`);
+            if (!row) {
+                const newRow = tbody.insertRow();
+                newRow.id = `client-${name}`;
+                newRow.innerHTML = `
+                    <td>${name}</td>
+                    <td class="score-cell">${score}</td>
+                `;
+            }
+        }
+        
+        function removeClientRow(name) {
+            const row = document.getElementById(`client-${name}`);
+            if (row) {
+                row.remove();
+            }
+            
+            const tbody = document.getElementById('scores-body');
+            if (tbody.children.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2" class="empty-state">No clients connected yet</td></tr>';
+            }
+        }
+        
+        function updateClientCount() {
+            const count = document.querySelectorAll('#scores-body tr:not(.empty-state)').length;
+            document.getElementById('client-count').textContent = `Connected Clients: ${count}`;
+        }
+        
+        function updateQuestionDisplay(num) {
+            const questions = [
+                "What is the capital of France?",
+                "2 + 2 = ?",
+                "Which protocol is used for web communication?",
+                "What does TCP stand for?",
+                "Which layer does IP belong to?"
+            ];
+            if (num > 0 && num <= questions.length) {
+                document.getElementById('current-question').textContent = questions[num - 1];
+            }
+        }
+        
+        function nextQuestion() {
+            socket.emit('next_question');
+        }
+    </script>
+</body>
+</html>

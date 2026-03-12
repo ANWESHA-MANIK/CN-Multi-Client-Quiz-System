@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz - Playing</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 600px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        .player-name {
+            color: #667eea;
+            font-weight: 600;
+        }
+        .score-display {
+            text-align: center;
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+            color: #333;
+        }
+        .question-box {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+        }
+        .question-text {
+            font-size: 1.3rem;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        .question-num {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 1rem;
+        }
+        .answer-section {
+            margin-bottom: 1rem;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1.1rem;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .waiting {
+            text-align: center;
+            color: #666;
+            padding: 2rem;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1.5rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .result {
+            text-align: center;
+        }
+        .result h2 {
+            color: #667eea;
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        .result .final-score {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 2rem;
+        }
+        .result .message {
+            font-size: 1.1rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Quiz Time!</h1>
+            <p class="player-name">Player: {{ name }}</p>
+        </div>
+        
+        <div class="score-display">
+            Current Score: <span id="score">0</span>
+        </div>
+        
+        <div id="quiz-area">
+            <div class="waiting">
+                <div class="spinner"></div>
+                <p>Connecting to server...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        const name = "{{ name }}";
+        const socket = io();
+        let currentScore = 0;
+        
+        socket.on("connect", () => {
+            console.log("Connected to server");
+            socket.emit("join_quiz", { name: name });
+        });
+        
+        socket.on("question", (data) => {
+            showQuestion(data);
+        });
+        
+        socket.on("result", (data) => {
+            showResult(data);
+        });
+        
+        socket.on("all_clients_next", (data) => {
+            showQuestion({number: data.number, question: data.question});
+        });
+        
+        socket.on("disconnect", () => {
+            document.getElementById("quiz-area").innerHTML = `
+                <div class="waiting">
+                    <p>Disconnected from server. Please refresh.</p>
+                </div>
+            `;
+        });
+        
+        function showQuestion(data) {
+            document.getElementById("quiz-area").innerHTML = `
+                <div class="question-box">
+                    <div class="question-num">Question ${data.number}</div>
+                    <p class="question-text">${data.question}</p>
+                </div>
+                <div class="answer-section">
+                    <input type="text" id="answer" placeholder="Type your answer..." autocomplete="off">
+                </div>
+                <button id="submit-btn" onclick="submitAnswer()">Submit Answer</button>
+            `;
+            document.getElementById("answer").focus();
+            document.getElementById("answer").addEventListener("keypress", (e) => {
+                if (e.key === "Enter") submitAnswer();
+            });
+        }
+        
+        function submitAnswer() {
+            const answer = document.getElementById("answer").value;
+            if (answer.trim()) {
+                document.getElementById("submit-btn").disabled = true;
+                document.getElementById("submit-btn").textContent = "Submitting...";
+                socket.emit("submit_answer", { answer: answer });
+                
+                document.getElementById("quiz-area").innerHTML = `
+                    <div class="waiting">
+                        <div class="spinner"></div>
+                        <p>Answer submitted! Waiting for next question...</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function showResult(data) {
+            currentScore = data.score;
+            document.getElementById("score").textContent = currentScore;
+            document.getElementById("quiz-area").innerHTML = `
+                <div class="result">
+                    <h2>Quiz Complete!</h2>
+                    <p class="final-score">Your Score: ${data.score} / ${data.total}</p>
+                    <p class="message">${getMessage(data.score, data.total)}</p>
+                </div>
+            `;
+        }
+        
+        function getMessage(score, total) {
+            const percentage = (score / total) * 100;
+            if (percentage === 100) return "Perfect! You are a quiz master!";
+            if (percentage >= 80) return "Excellent work!";
+            if (percentage >= 60) return "Good job!";
+            if (percentage >= 40) return "Not bad, keep learning!";
+            return "Better luck next time!";
+        }
+    </script>
+</body>
+</html>
