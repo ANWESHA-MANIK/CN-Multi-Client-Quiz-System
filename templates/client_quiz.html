@@ -43,7 +43,6 @@
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
 
-        /* Top Bar */
         .top-bar {
             display: flex;
             justify-content: space-between;
@@ -65,8 +64,8 @@
             color: #c4b5fd;
         }
 
-        /* Question Area */
-        .question-box { margin-bottom: 2rem; }
+        .question-box { margin-bottom: 1rem; }
+
         .q-num {
             display: inline-block;
             color: var(--primary);
@@ -76,28 +75,32 @@
             letter-spacing: 1px;
             margin-bottom: 0.5rem;
         }
+
         .q-text {
             font-size: 1.5rem;
             font-weight: 500;
             line-height: 1.4;
         }
 
-        /* Input Styling */
-        .input-group { position: relative; margin-bottom: 1.5rem; }
+        /* 🔥 TIMER STYLE */
+        #timer {
+            font-size: 2.2rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 1rem;
+            color: #4ade80;
+        }
+
+        .input-group { margin-bottom: 1.5rem; }
+
         input[type="text"] {
             width: 100%;
             background: rgba(0, 0, 0, 0.2);
             border: 2px solid var(--glass-border);
             border-radius: 12px;
-            padding: 1rem 1.25rem;
+            padding: 1rem;
             color: white;
             font-size: 1.1rem;
-            transition: all 0.3s ease;
-        }
-        input[type="text"]:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2);
         }
 
         button {
@@ -110,121 +113,165 @@
             font-weight: 700;
             font-size: 1rem;
             cursor: pointer;
-            transition: transform 0.2s, opacity 0.2s;
         }
-        button:hover { transform: translateY(-2px); }
-        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-        /* Waiting/Result States */
         .status-msg {
             text-align: center;
             padding: 2rem 0;
         }
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid var(--glass-border);
-            border-top: 3px solid var(--primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 1.5rem;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        .result-screen h2 { font-size: 2.5rem; margin-bottom: 1rem; color: #a78bfa; }
-        .result-screen p { font-size: 1.1rem; color: #94a3b8; }
+        .result-screen h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: #a78bfa;
+        }
     </style>
 </head>
 <body>
-    <div class="quiz-container">
-        <div class="top-bar">
-            <div class="player-info">
-                <h3>PARTICIPANT</h3>
-                <p>{{ name }}</p>
-            </div>
-            <div class="score-pill">Score: <span id="current-score">0</span></div>
-        </div>
 
-        <div id="quiz-area">
-            <div class="status-msg">
-                <div class="spinner"></div>
-                <p>Establishing Secure Link...</p>
-            </div>
+<div class="quiz-container">
+    <div class="top-bar">
+        <div class="player-info">
+            <h3>PARTICIPANT</h3>
+            <p>{{ name }}</p>
         </div>
+        <div class="score-pill">Score: <span id="current-score">0</span></div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    <script>
-        const socket = io(window.location.origin);
-        const playerName = "{{ name }}";
-        let score = 0;
+    <div id="quiz-area">
+        <div class="status-msg">
+            <p>Waiting for question...</p>
+        </div>
+    </div>
+</div>
 
-        socket.on('connect', () => {
-            console.log("Connected to Quiz Server at " + window.location.origin);
-            socket.emit('join_quiz', { name: playerName });
-        });
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+<script>
+const socket = io(window.location.origin);
+const playerName = "{{ name }}";
+let timerInterval;
 
-        socket.on('question', (data) => {
-            renderQuestion(data);
-        });
+socket.on("connect", () => {
+    socket.emit("join_quiz", { name: playerName });
+});
 
-        socket.on('all_clients_next', (data) => {
-            renderQuestion(data);
-        });
+// 🔥 QUESTION + TIMER
+socket.on("all_clients_next", (data) => {
+    renderQuestion(data);
+    startTimer(data.time_left || 10);
+});
 
-        socket.on('result_all', () => {
-            showFinal();
-        });
+// 🔥 SCORE UPDATE
+socket.on("score_update", (data) => {
+    if (data.name === playerName) {
+        document.getElementById("current-score").textContent = data.score;
+    }
+});
 
-        function renderQuestion(data) {
-            document.getElementById('quiz-area').innerHTML = `
-                <div class="question-box">
-                    <span class="q-num">Question ${data.number}</span>
-                    <p class="q-text">${data.question}</p>
-                </div>
-                <div class="input-group">
-                    <input type="text" id="ans-input" placeholder="Type your answer here..." autocomplete="off">
-                </div>
-                <button id="submit-btn" onclick="submitAnswer()">Submit Response</button>
-            `;
-            const input = document.getElementById('ans-input');
-            input.focus();
-            input.addEventListener('keypress', (e) => { if(e.key === 'Enter') submitAnswer(); });
+// 🔥 QUIZ END
+socket.on("quiz_completed", () => {
+    showFinal();
+});
+
+function renderQuestion(data) {
+    document.getElementById('quiz-area').innerHTML = `
+        <div class="question-box">
+            <span class="q-num">Question ${data.number}</span>
+            <p class="q-text">${data.question}</p>
+        </div>
+
+        <div id="timer">${data.time_left || 10}s</div>
+
+        <div class="input-group">
+            <input type="text" id="ans-input" placeholder="Type your answer...">
+        </div>
+
+        <button id="submit-btn" onclick="submitAnswer()">Submit</button>
+    `;
+
+    document.getElementById("ans-input").focus();
+}
+
+// ⏱️ TIMER
+function startTimer(time) {
+    clearInterval(timerInterval);
+
+    let t = time;
+
+    timerInterval = setInterval(() => {
+        t--;
+
+        const timerEl = document.getElementById("timer");
+
+        if (timerEl) {
+            timerEl.innerText = t + "s";
+
+            // 🎨 color changes
+            if (t > 5) timerEl.style.color = "#4ade80";     // green
+            else if (t > 2) timerEl.style.color = "#facc15"; // yellow
+            else timerEl.style.color = "#f87171";           // red
         }
 
-        function submitAnswer() {
-            const val = document.getElementById('ans-input').value;
-            if(!val.trim()) return;
+        if (t <= 0) {
+            clearInterval(timerInterval);
 
-            document.getElementById('submit-btn').disabled = true;
-            document.getElementById('submit-btn').innerText = "Encrypted & Sent";
-            
-            socket.emit('submit_answer', { answer: val });
+            const input = document.getElementById("ans-input");
+            const btn = document.getElementById("submit-btn");
 
-            document.getElementById('quiz-area').innerHTML = `
-                <div class="status-msg">
-                    <div class="spinner"></div>
-                    <p>Answer Locked. Waiting for the next question...</p>
-                </div>
-            `;
+            let val = "";
+            if (input) val = input.value;
+
+            //AUTO SUBMIT
+            socket.emit("submit_answer", { answer: val });
+
+            //disable after submit
+            if (input) input.disabled = true;
+            if (btn) btn.disabled = true;
+
+            //small delay to avoid UI conflict
+            setTimeout(() => {
+                const quizArea = document.getElementById("quiz-area");
+                if (quizArea) {
+                    quizArea.innerHTML = `
+                        <button disabled>Time's Up! Answer Submitted</button>
+                        <div class="status-msg">
+                            <p>Waiting for next question...</p>
+                        </div>
+                    `;
+                }
+            }, 200);
         }
 
-        // Live score updates from the server
-        socket.on('score_update', (data) => {
-            if(data.name === playerName) {
-                score = data.score;
-                document.getElementById('current-score').textContent = score;
-            }
-        });
+    }, 1000);
+}
 
-        function showFinal() {
-            document.getElementById('quiz-area').innerHTML = `
-                <div class="status-msg result-screen">
-                    <h2>Quiz Finished!</h2>
-                    <p>Excellent performance. The administrator will announce the final rankings shortly.</p>
-                </div>
-            `;
-        }
-    </script>
+//SUBMIT
+function submitAnswer() {
+    const val = document.getElementById("ans-input").value;
+    if (!val.trim()) return;
+
+    socket.emit("submit_answer", { answer: val });
+
+    document.getElementById("submit-btn").disabled = true;
+
+    document.getElementById('quiz-area').innerHTML = `
+        <button disabled>Answer Submitted</button>
+        <div class="status-msg">
+            <p>Waiting for next question...</p>
+        </div>
+    `;
+}
+
+// 🎯 FINAL
+function showFinal() {
+    document.getElementById('quiz-area').innerHTML = `
+        <div class="status-msg result-screen">
+            <h2>Quiz Completed!</h2>
+            <p>Great job!</p>
+        </div>
+    `;
+}
+</script>
+
 </body>
 </html>

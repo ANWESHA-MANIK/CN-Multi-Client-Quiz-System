@@ -1,5 +1,4 @@
 What is the capital of France?|Paris
-2 + 2 = ?|4
 Which protocol is used for web communication?|HTTP
 What does TCP stand for?|Transmission Control Protocol
 Which layer does IP belong to?|Network
