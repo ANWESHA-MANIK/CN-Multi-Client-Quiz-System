@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz — Join</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ── Reset & Base ─────────────────────────── */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg:       #0d1117;   /* GitHub dark background */
+            --surface:  #161b22;   /* Card background */
+            --border:   #30363d;   /* Subtle borders */
+            --accent:   #2563eb;   /* Primary blue */
+            --accent-h: #1d4ed8;   /* Hover state */
+            --text:     #f0f6fc;   /* Primary text */
+            --muted:    #8b949e;   /* Secondary text */
+            --error:    #f85149;   /* Error red */
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+
+        /* ── Card ─────────────────────────────────── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2.5rem 2rem;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        /* ── Header ──────────────────────────────── */
+        .card-header {
+            margin-bottom: 2rem;
+        }
+
+        .tag {
+            display: inline-block;
+            background: rgba(37, 99, 235, 0.15);
+            color: var(--accent);
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            margin-bottom: 0.75rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.35rem;
+        }
+
+        .subtitle {
+            font-size: 0.875rem;
+            color: var(--muted);
+        }
+
+        /* ── Form ────────────────────────────────── */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--muted);
+            margin-bottom: 0.4rem;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.7rem 0.875rem;
+            color: var(--text);
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: border-color 0.15s, box-shadow 0.15s;
+            outline: none;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+        }
+
+        /* ── Error message ───────────────────────── */
+        .error-msg {
+            font-size: 0.8rem;
+            color: var(--error);
+            margin-top: 0.35rem;
+        }
+
+        /* ── Submit button ───────────────────────── */
+        button[type="submit"] {
+            width: 100%;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.15s;
+            margin-top: 0.25rem;
+        }
+
+        button[type="submit"]:hover { background: var(--accent-h); }
+        button[type="submit"]:active { transform: scale(0.99); }
+
+        /* ── Footer info strip ───────────────────── */
+        .info-strip {
+            margin-top: 2rem;
+            padding-top: 1.25rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .info-item {
+            font-size: 0.72rem;
+            color: var(--muted);
+        }
+
+        .info-item strong {
+            color: var(--text);
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── Main Card ─────────────────────────────────── -->
+<div class="card">
+
+    <div class="card-header">
+        <div class="tag">CN Project</div>
+        <h1>Join Quiz</h1>
+        <p class="subtitle">Enter your name and join the quiz</p>
+    </div>
+
+    <!-- Form: submit name, server saves it in session -->
+    <form method="POST">
+        <div class="form-group">
+            <label for="name">Screen Name</label>
+            <input
+                type="text"
+                id="name"
+                name="name"
+                placeholder="e.g. Alex, Rahul_99"
+                autofocus
+                maxlength="30"
+                autocomplete="off"
+            >
+            <!-- Show error passed from Flask -->
+            {% if error %}
+                <p class="error-msg">{{ error }}</p>
+            {% endif %}
+        </div>
+
+        <button type="submit">Join Session →</button>
+    </form>
+
+    <!-- Network info strip — show server IP and ports -->
+    <div class="info-strip">
+        <div class="info-item"><strong>HOST</strong> {{ server_ip }}</div>
+        <div class="info-item"><strong>PORT</strong> 5001</div>
+        <div class="info-item"><strong>TLS</strong> Active</div>
+    </div>
+
+</div>
+
+</body>
+</html>

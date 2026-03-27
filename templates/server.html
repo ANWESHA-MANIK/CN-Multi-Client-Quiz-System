@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz — Admin Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ── Reset & Base ─────────────────────────── */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg:       #0d1117;
+            --surface:  #161b22;
+            --surface2: #1c2128;
+            --border:   #30363d;
+            --accent:   #2563eb;
+            --accent-h: #1d4ed8;
+            --text:     #f0f6fc;
+            --muted:    #8b949e;
+            --green:    #3fb950;
+            --red:      #f85149;
+            --yellow:   #d29922;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            padding: 2rem 1.5rem;
+        }
+
+        /* ── Layout ──────────────────────────────── */
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        /* ── Header ──────────────────────────────── */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 2rem;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .page-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .page-sub {
+            font-size: 0.8rem;
+            color: var(--muted);
+            margin-top: 0.2rem;
+        }
+
+        /* Status dot */
+        .status-dot {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--muted);
+            padding: 0.35rem 0.7rem;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+        }
+
+        .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.4; }
+        }
+
+        /* ── Stats row ───────────────────────────── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--muted);
+            margin-bottom: 0.35rem;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .stat-value.accent { color: var(--accent); }
+        .stat-value.green  { color: var(--green); }
+
+        /* ── Control panel card ──────────────────── */
+        .panel-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .panel-title {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            margin-bottom: 1rem;
+        }
+
+        /* Current question display */
+        .q-display {
+            font-size: 1.1rem;
+            font-weight: 500;
+            line-height: 1.5;
+            min-height: 2.5rem;
+            margin-bottom: 1.25rem;
+            color: var(--text);
+        }
+
+        /* Timer bar on dashboard */
+        .timer-wrap {
+            margin-bottom: 1.25rem;
+        }
+
+        .timer-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin-bottom: 0.4rem;
+        }
+
+        .timer-bar-bg {
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .timer-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 1s linear, background 0.3s;
+        }
+
+        /* ── Button group ────────────────────────── */
+        .btn-group {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 8px;
+            padding: 0.65rem 1.25rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.15s, opacity 0.15s;
+        }
+
+        .btn-start {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .btn-start:hover   { background: var(--accent-h); }
+        .btn-start:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-reset {
+            background: transparent;
+            color: var(--muted);
+            border: 1px solid var(--border);
+        }
+
+        .btn-reset:hover {
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        .btn-reset:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* ── Toast notification ──────────────────── */
+        #toast {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-size: 0.825rem;
+            max-width: 320px;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.25s, transform 0.25s;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        #toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        #toast.error  { border-color: var(--red);    color: var(--red); }
+        #toast.success{ border-color: var(--green);  color: var(--green); }
+        #toast.info   { border-color: var(--accent); color: var(--accent); }
+
+        /* ── Scoreboard ──────────────────────────── */
+        .scoreboard {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .sb-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sb-title {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+        }
+
+        #player-count {
+            font-size: 0.75rem;
+            color: var(--muted);
+        }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead th {
+            padding: 0.6rem 1.25rem;
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--muted);
+            text-align: left;
+            background: var(--surface2);
+            border-bottom: 1px solid var(--border);
+        }
+
+        thead th:last-child { text-align: right; }
+
+        tbody tr {
+            border-top: 1px solid var(--border);
+            transition: background 0.15s;
+        }
+
+        tbody tr:first-child { border-top: none; }
+        tbody tr:hover { background: var(--surface2); }
+
+        td {
+            padding: 0.75rem 1.25rem;
+            font-size: 0.875rem;
+        }
+
+        .td-rank  { color: var(--muted); font-size: 0.8rem; width: 2rem; }
+        .td-name  { font-weight: 500; }
+        .td-score { text-align: right; font-weight: 700; color: var(--accent); }
+
+        .td-name .disconnected { opacity: 0.4; }
+
+        /* Empty state */
+        .empty-row td {
+            text-align: center;
+            color: var(--muted);
+            padding: 2.5rem;
+            font-size: 0.875rem;
+        }
+
+        /* Network info strip */
+        .info-strip {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin-top: 1.5rem;
+            padding-top: 1.25rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.75rem;
+            color: var(--muted);
+        }
+
+        .info-strip strong { color: var(--text); font-weight: 500; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- ── Page Header ──────────────────────────── -->
+    <div class="page-header">
+        <div>
+            <div class="page-title">Quiz Control Panel</div>
+            <div class="page-sub">CN Project — Admin Dashboard</div>
+        </div>
+        <div class="status-dot">
+            <div class="dot"></div>
+            Server Live
+        </div>
+    </div>
+
+    <!-- ── Stats Row ────────────────────────────── -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-label">Connected Players</div>
+            <div class="stat-value accent" id="stat-players">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Current Question</div>
+            <div class="stat-value" id="stat-qnum">—</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Total Questions</div>
+            <div class="stat-value green">{{ total_questions }}</div>
+        </div>
+    </div>
+
+    <!-- ── Control Panel ────────────────────────── -->
+    <div class="panel-card">
+        <div class="panel-title">Control Center</div>
+
+        <!-- Current question display (server sees same question) -->
+        <div class="q-display" id="q-display">
+            Quiz has not started yet. Press "Start Quiz".
+        </div>
+
+        <!-- Live timer bar -->
+        <div class="timer-wrap" id="timer-wrap" style="display:none;">
+            <div class="timer-meta">
+                <span>Time Remaining</span>
+                <span id="timer-label">—</span>
+            </div>
+            <div class="timer-bar-bg">
+                <div class="timer-bar-fill" id="timer-fill" style="width:100%; background:var(--green);"></div>
+            </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="btn-group">
+            <button class="btn btn-start" id="btn-start" onclick="startQuiz()">
+                Start Quiz
+            </button>
+            <button class="btn btn-reset" id="btn-reset" onclick="resetQuiz()" disabled>
+                Reset
+            </button>
+        </div>
+
+        <!-- Network info at bottom of panel -->
+        <div class="info-strip">
+            <div><strong>Server IP</strong> {{ server_ip }}</div>
+            <div><strong>Web Port</strong> {{ web_port }}</div>
+            <div><strong>TLS Port</strong> {{ tls_port }}</div>
+            <div><strong>Join URL</strong> http://{{ server_ip }}:{{ web_port }}/client</div>
+        </div>
+    </div>
+
+    <!-- ── Scoreboard ────────────────────────────── -->
+    <div class="scoreboard">
+        <div class="sb-header">
+            <div class="sb-title">Leaderboard</div>
+            <div id="player-count">0 players</div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Player Name</th>
+                    <th>Score</th>
+                </tr>
+            </thead>
+            <tbody id="scores-body">
+                <!-- Empty state — no players yet -->
+                <tr class="empty-row">
+                    <td colspan="3">No players yet. Waiting for players to join.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<!-- Toast notification -->
+<div id="toast"></div>
+
+<!-- Socket.IO CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+// ── Setup ──────────────────────────────────────────
+// Admin dashboard connects to /server namespace
+// This namespace handles @socketio.on("...", namespace="/server") events in app.py
+const socket = io('/server');
+
+let quizRunning     = false;  // Is the quiz running?
+let totalQuestions  = {{ total_questions }};  // Passed from Flask
+let timerMax        = 15;     // Timer duration in seconds (matches QUESTION_DURATION in app.py)
+let timerRemaining  = 0;      // Seconds remaining
+
+
+// ── WebSocket Events ────────────────────────────────
+
+socket.on("connect", () => {
+    console.log("[Admin] Connected to /server namespace");
+});
+
+// Quiz has started
+socket.on("quiz_started", (data) => {
+    quizRunning = true;
+    totalQuestions = data.total || totalQuestions;
+    document.getElementById("btn-start").disabled = true;
+    document.getElementById("btn-reset").disabled = true;
+    document.getElementById("q-display").textContent = "Quiz started! First question is on its way...";
+    showToast("Quiz started!", "success");
+});
+
+// New question received
+socket.on("all_clients_next", (data) => {
+    // Update question text
+    document.getElementById("q-display").textContent = data.question;
+    // Show timer
+    timerMax = data.time_left || 15;
+    timerRemaining = timerMax;
+    updateTimerBar(timerRemaining, timerMax);
+    document.getElementById("timer-wrap").style.display = "block";
+    // Update stats
+    document.getElementById("stat-qnum").textContent =
+        `${data.number} / ${data.total || totalQuestions}`;
+});
+
+// Timer tick — comes from server every second
+socket.on("timer_tick", (data) => {
+    timerRemaining = data.remaining;
+    updateTimerBar(timerRemaining, timerMax);
+});
+
+// New player joined
+socket.on("client_joined", (data) => {
+    addOrUpdatePlayer(data.name, 0);
+    document.getElementById("stat-players").textContent = countPlayers();
+    showToast(`${data.name} joined`, "info");
+});
+
+// Score update
+socket.on("score_update", (data) => {
+    addOrUpdatePlayer(data.name, data.score);
+});
+
+// Player disconnected
+socket.on("client_left", (data) => {
+    markDisconnected(data.name);
+    document.getElementById("stat-players").textContent =
+        data.total_players !== undefined ? data.total_players : countPlayers();
+    showToast(`${data.name} disconnected`, "info");
+});
+
+// Quiz finished
+socket.on("quiz_completed", (data) => {
+    quizRunning = false;
+    document.getElementById("btn-start").disabled = true;  // Don't allow restart
+    document.getElementById("btn-reset").disabled = false;  // Allow reset
+    document.getElementById("timer-wrap").style.display = "none";
+    document.getElementById("stat-qnum").textContent = "Done";
+    document.getElementById("q-display").textContent = "Quiz complete!";
+    // Update final scores
+    if (data.scores) {
+        data.scores.forEach(s => addOrUpdatePlayer(s.name, s.score));
+        sortBoard();
+    }
+    showToast("Quiz complete! Reset to play again.", "success");
+});
+
+// Reset confirmed
+socket.on("reset_done", (data) => {
+    quizRunning = false;
+    document.getElementById("btn-start").disabled = false;
+    document.getElementById("btn-reset").disabled = true;
+    document.getElementById("timer-wrap").style.display = "none";
+    document.getElementById("stat-qnum").textContent = "—";
+    document.getElementById("q-display").textContent = 'Quiz has been reset. Press "Start Quiz".';
+    // Clear scores
+    clearScoreboard();
+    showToast(data.message || "Reset done!", "info");
+});
+
+// Error message from server
+socket.on("quiz_error", (data) => {
+    showToast(data.message || "An error occurred", "error");
+});
+
+
+// ── Control Actions ─────────────────────────────────
+
+/** Admin clicked Start Quiz */
+function startQuiz() {
+    if (quizRunning) return;
+    socket.emit("start_quiz");
+    document.getElementById("btn-start").disabled = true;
+    document.getElementById("q-display").textContent = "Starting quiz...";
+}
+
+/** Admin clicked Reset */
+function resetQuiz() {
+    if (quizRunning) return;
+    socket.emit("reset_quiz");
+    document.getElementById("btn-reset").disabled = true;
+}
+
+
+// ── UI Helpers ───────────────────────────────────────
+
+/**
+ * Update timer bar
+ * remaining: seconds left
+ * max: total seconds
+ */
+function updateTimerBar(remaining, max) {
+    const pct   = max > 0 ? (remaining / max) * 100 : 0;
+    const fillEl = document.getElementById("timer-fill");
+    const labelEl = document.getElementById("timer-label");
+    if (!fillEl || !labelEl) return;
+
+    fillEl.style.width = pct + "%";
+    labelEl.textContent = remaining + "s";
+
+    if (remaining > max * 0.5) {
+        fillEl.style.background = "var(--green)";
+    } else if (remaining > max * 0.25) {
+        fillEl.style.background = "var(--yellow)";
+    } else {
+        fillEl.style.background = "var(--red)";
+    }
+}
+
+/**
+ * Add or update player in scoreboard
+ * Create a new row if one doesn't exist
+ */
+function addOrUpdatePlayer(name, score) {
+    const tbody = document.getElementById("scores-body");
+
+    // Remove empty state row
+    const emptyRow = tbody.querySelector(".empty-row");
+    if (emptyRow) emptyRow.remove();
+
+    // Row ID — built from name (spaces replaced with underscore)
+    const rowId = "p-" + name.replace(/\s+/g, "_");
+    let row = document.getElementById(rowId);
+
+    if (!row) {
+        // Create new row
+        row = tbody.insertRow();
+        row.id = rowId;
+        row.innerHTML = `
+            <td class="td-rank">—</td>
+            <td class="td-name"><span class="name-text">${escHtml(name)}</span></td>
+            <td class="td-score">${score}</td>
+        `;
+    } else {
+        // Update score
+        row.querySelector(".td-score").textContent = score;
+        // Re-enable if previously marked as disconnected
+        row.querySelector(".name-text").classList.remove("disconnected");
+    }
+
+    sortBoard();
+    updatePlayerCount();
+}
+
+/**
+ * Show player as dimmed (after disconnect)
+ */
+function markDisconnected(name) {
+    const rowId = "p-" + name.replace(/\s+/g, "_");
+    const row   = document.getElementById(rowId);
+    if (row) {
+        const nameEl = row.querySelector(".name-text");
+        if (nameEl) nameEl.classList.add("disconnected");
+    }
+}
+
+/**
+ * Sort rows by score (highest first)
+ * Also update ranks
+ */
+function sortBoard() {
+    const tbody = document.getElementById("scores-body");
+    const rows  = Array.from(tbody.querySelectorAll("tr:not(.empty-row)"));
+
+    rows.sort((a, b) => {
+        const sa = parseInt(a.querySelector(".td-score").textContent) || 0;
+        const sb = parseInt(b.querySelector(".td-score").textContent) || 0;
+        return sb - sa;   // Descending order
+    });
+
+    // Append in sorted order to DOM
+    rows.forEach((row, i) => {
+        tbody.appendChild(row);
+        row.querySelector(".td-rank").textContent = "#" + (i + 1);
+    });
+}
+
+/**
+ * Clear the scoreboard
+ */
+function clearScoreboard() {
+    const tbody = document.getElementById("scores-body");
+    tbody.innerHTML = `
+        <tr class="empty-row">
+            <td colspan="3">No players yet. Waiting for players to join.</td>
+        </tr>
+    `;
+    updatePlayerCount();
+}
+
+/**
+ * Count and update connected players
+ */
+function countPlayers() {
+    return document.querySelectorAll("#scores-body tr:not(.empty-row)").length;
+}
+
+function updatePlayerCount() {
+    const n = countPlayers();
+    document.getElementById("player-count").textContent = `${n} player${n !== 1 ? 's' : ''}`;
+    document.getElementById("stat-players").textContent = n;
+}
+
+/**
+ * Show toast notification
+ * type: "info" | "success" | "error"
+ */
+let toastTimer = null;
+
+function showToast(message, type = "info") {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    toast.className   = `show ${type}`;
+
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+        toast.className = type;  // hide (opacity 0)
+    }, 3000);
+}
+
+/**
+ * XSS prevention — sanitize user-facing names
+ */
+function escHtml(str) {
+    if (!str) return "";
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+</script>
+
+</body>
+</html>

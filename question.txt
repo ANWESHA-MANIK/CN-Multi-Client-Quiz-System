@@ -1,5 +1,20 @@
-What is the capital of France?|Paris
-2 + 2 = ?|4
-Which protocol is used for web communication?|HTTP
 What does TCP stand for?|Transmission Control Protocol
+What does UDP stand for?|User Datagram Protocol
 Which layer does IP belong to?|Network
+What does DNS stand for?|Domain Name System
+Which port does HTTP use by default?|80
+Which port does HTTPS use?|443
+What does FTP stand for?|File Transfer Protocol
+What does ARP stand for?|Address Resolution Protocol
+Which protocol assigns IP addresses dynamically?|DHCP
+What does ICMP stand for?|Internet Control Message Protocol
+Which layer does TCP operate on?|Transport
+What does OSI stand for?|Open Systems Interconnection
+How many layers are in the OSI model?|7
+Which layer is responsible for routing packets?|Network
+What does MAC stand for in networking?|Media Access Control
+Which protocol is used for sending emails?|SMTP
+What does SSL stand for?|Secure Sockets Layer
+What does TLS stand for?|Transport Layer Security
+Which protocol does ping use?|ICMP
+What is the loopback IP address?|127.0.0.1

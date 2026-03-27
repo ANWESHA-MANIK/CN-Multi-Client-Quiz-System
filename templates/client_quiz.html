@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz — Playing</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ── Reset & Base ─────────────────────────── */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg:       #0d1117;
+            --surface:  #161b22;
+            --border:   #30363d;
+            --accent:   #2563eb;
+            --text:     #f0f6fc;
+            --muted:    #8b949e;
+            --green:    #3fb950;
+            --red:      #f85149;
+            --yellow:   #d29922;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+
+        /* ── Main Card ───────────────────────────── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 520px;
+            overflow: hidden;   /* for timer bar */
+        }
+
+        /* ── Top bar: player info + score ───────── */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .player-name {
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .player-label {
+            font-size: 0.7rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 0.15rem;
+        }
+
+        .score-badge {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--muted);
+        }
+
+        .score-badge span {
+            color: var(--accent);
+            font-size: 1rem;
+        }
+
+        /* ── Content area ────────────────────────── */
+        .content {
+            padding: 1.75rem 1.5rem;
+            min-height: 260px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* ── Waiting / status state ──────────────── */
+        .status-view {
+            text-align: center;
+        }
+
+        .status-icon {
+            width: 40px;
+            height: 40px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            margin: 0 auto 1rem;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .status-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.35rem;
+        }
+
+        .status-sub {
+            font-size: 0.825rem;
+            color: var(--muted);
+        }
+
+        /* ── Question view ───────────────────────── */
+        .q-meta {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            margin-bottom: 0.75rem;
+        }
+
+        .q-text {
+            font-size: 1.2rem;
+            font-weight: 500;
+            line-height: 1.5;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Timer number */
+        .timer-num {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0.6rem;
+            transition: color 0.3s;
+        }
+
+        .timer-num.green  { color: var(--green); }
+        .timer-num.yellow { color: var(--yellow); }
+        .timer-num.red    { color: var(--red); }
+
+        /* ── Timer bar ───────────────────────────── */
+        .timer-bar-wrap {
+            height: 3px;
+            background: var(--border);
+            border-radius: 2px;
+            margin-bottom: 1.25rem;
+            overflow: hidden;
+        }
+
+        .timer-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 1s linear, background 0.3s;
+        }
+
+        /* ── Answer input ────────────────────────── */
+        input[type="text"] {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.7rem 0.875rem;
+            color: var(--text);
+            font-size: 0.9rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+            margin-bottom: 0.75rem;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+        }
+
+        input[type="text"]:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* ── Buttons ─────────────────────────────── */
+        .btn {
+            width: 100%;
+            border: none;
+            border-radius: 8px;
+            padding: 0.7rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.15s, opacity 0.15s;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .btn-primary:hover { background: #1d4ed8; }
+
+        .btn-disabled {
+            background: var(--border);
+            color: var(--muted);
+            cursor: not-allowed;
+        }
+
+        /* ── Answer result feedback ──────────────── */
+        .result-pill {
+            display: inline-block;
+            padding: 0.3rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        .result-pill.correct {
+            background: rgba(63, 185, 80, 0.15);
+            color: var(--green);
+            border: 1px solid rgba(63, 185, 80, 0.3);
+        }
+
+        .result-pill.wrong {
+            background: rgba(248, 81, 73, 0.15);
+            color: var(--red);
+            border: 1px solid rgba(248, 81, 73, 0.3);
+        }
+
+        .correct-ans {
+            font-size: 0.8rem;
+            color: var(--muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .correct-ans strong { color: var(--text); }
+
+        /* ── Final results screen ────────────────── */
+        .final-view {
+            text-align: center;
+        }
+
+        .final-score {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 0.25rem;
+        }
+
+        .final-label {
+            font-size: 0.875rem;
+            color: var(--muted);
+            margin-bottom: 1rem;
+        }
+
+        .final-verdict {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+
+        .leaderboard {
+            text-align: left;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .lb-title {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            padding: 0.6rem 0.875rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .lb-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.55rem 0.875rem;
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .lb-row:first-of-type { border-top: none; }
+
+        .lb-rank { color: var(--muted); width: 1.5rem; }
+        .lb-name { flex: 1; }
+        .lb-score { font-weight: 600; color: var(--accent); }
+
+        .lb-row.me .lb-name { font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+
+    <!-- ── Top bar: name and score ───────────────── -->
+    <div class="top-bar">
+        <div>
+            <div class="player-label">Player</div>
+            <div class="player-name">{{ name }}</div>
+        </div>
+        <div class="score-badge">
+            Score&nbsp;<span id="score-val">0</span>
+        </div>
+    </div>
+
+    <!-- ── Dynamic content area ──────────────────── -->
+    <div class="content" id="main-area">
+
+        <!-- Default state: wait for quiz to start -->
+        <div class="status-view">
+            <div class="status-icon"></div>
+            <div class="status-title">Waiting for quiz...</div>
+            <div class="status-sub">Waiting for the host to start</div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Load Socket.IO library from CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+// ── Setup ─────────────────────────────────────────
+// Name passed from Flask via Jinja2 template variable
+const PLAYER_NAME = "{{ name }}";
+
+// Connect to server (same origin, default namespace "/")
+const socket = io(window.location.origin);
+
+let timerInterval = null;   // setInterval reference — to clear later
+let answered      = false;  // Has this question been answered?
+let questionDuration = 15;  // Timer duration in seconds
+
+
+// ── WebSocket Events ──────────────────────────────
+
+// Connection established — join the quiz
+socket.on("connect", () => {
+    socket.emit("join_quiz", { name: PLAYER_NAME });
+});
+
+// Server said "wait" (quiz hasn't started yet)
+socket.on("waiting", (data) => {
+    showWaiting(data.message || "Waiting for the host to start");
+});
+
+// Quiz has started!
+socket.on("quiz_started", (data) => {
+    showWaiting("Quiz started! First question is on its way...");
+});
+
+// New question was broadcast
+socket.on("all_clients_next", (data) => {
+    answered = false;
+    questionDuration = data.time_left || 15;
+    showQuestion(data);
+    startTimer(questionDuration);
+});
+
+// Server sent answer result (correct / wrong)
+socket.on("answer_result", (data) => {
+    // Update score
+    document.getElementById("score-val").textContent = data.score;
+    // Show result feedback
+    showAnswerFeedback(data.correct, data.correct_answer);
+});
+
+// Score update (broadcast from server)
+socket.on("score_update", (data) => {
+    // Only update own score
+    if (data.name === PLAYER_NAME) {
+        document.getElementById("score-val").textContent = data.score;
+    }
+});
+
+// Quiz was reset (admin reset it)
+socket.on("quiz_reset", () => {
+    clearTimer();
+    answered = false;
+    showWaiting("Quiz has been reset. Waiting for next start...");
+});
+
+// Quiz complete — final results received
+socket.on("quiz_completed", (data) => {
+    clearTimer();
+    answered = true;
+    showFinalResults(data.scores || [], data.total || 0);
+});
+
+
+// ── UI Functions ──────────────────────────────────
+
+/**
+ * Show waiting/loading state
+ * message: string — text to display
+ */
+function showWaiting(message) {
+    clearTimer();
+    document.getElementById("main-area").innerHTML = `
+        <div class="status-view">
+            <div class="status-icon"></div>
+            <div class="status-title">${escHtml(message)}</div>
+            <div class="status-sub">The next question will appear here automatically</div>
+        </div>
+    `;
+}
+
+/**
+ * Show question — with input box and submit button
+ * data: {number, total, question, time_left}
+ */
+function showQuestion(data) {
+    clearTimer();
+    document.getElementById("main-area").innerHTML = `
+        <div class="q-meta">Question ${data.number} / ${data.total || '?'}</div>
+        <div class="q-text">${escHtml(data.question)}</div>
+
+        <!-- Timer: number + bar -->
+        <div class="timer-num green" id="timer-num">${questionDuration}s</div>
+        <div class="timer-bar-wrap">
+            <div class="timer-bar-fill" id="timer-bar"
+                 style="width:100%; background: var(--green);">
+            </div>
+        </div>
+
+        <!-- Answer input -->
+        <input type="text" id="ans-input"
+               placeholder="Type your answer here..."
+               maxlength="100"
+               autocomplete="off">
+
+        <button class="btn btn-primary" id="submit-btn" onclick="submitAnswer()">
+            Submit Answer
+        </button>
+    `;
+    // Focus the input — so user can type directly
+    document.getElementById("ans-input").focus();
+
+    // Also submit on Enter key
+    document.getElementById("ans-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") submitAnswer();
+    });
+}
+
+/**
+ * Start timer — countdown + bar animation
+ * duration: seconds
+ */
+function startTimer(duration) {
+    clearTimer();
+    let remaining = duration;
+
+    timerInterval = setInterval(() => {
+        remaining--;
+
+        const numEl = document.getElementById("timer-num");
+        const barEl = document.getElementById("timer-bar");
+        if (!numEl || !barEl) { clearTimer(); return; }
+
+        const pct = (remaining / duration) * 100;
+
+        numEl.textContent = remaining + "s";
+        barEl.style.width = pct + "%";
+
+        // Color change: green → yellow → red
+        if (remaining > duration * 0.5) {
+            numEl.className = "timer-num green";
+            barEl.style.background = "var(--green)";
+        } else if (remaining > duration * 0.25) {
+            numEl.className = "timer-num yellow";
+            barEl.style.background = "var(--yellow)";
+        } else {
+            numEl.className = "timer-num red";
+            barEl.style.background = "var(--red)";
+        }
+
+        // Time's up — auto-submit
+        if (remaining <= 0) {
+            clearTimer();
+            if (!answered) {
+                answered = true;
+                // Auto-submit: whatever is in the input, or empty string
+                const inp = document.getElementById("ans-input");
+                const val = inp ? inp.value.trim() : "";
+                socket.emit("submit_answer", { answer: val });
+                showAnswerFeedback(null, null, true); // timed out state
+            }
+        }
+    }, 1000);
+}
+
+/**
+ * Clear the timer
+ */
+function clearTimer() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+}
+
+/**
+ * User pressed Submit
+ */
+function submitAnswer() {
+    if (answered) return;   // Block duplicate submits
+
+    const inp = document.getElementById("ans-input");
+    if (!inp) return;
+
+    const val = inp.value.trim();
+    if (!val) return;   // Don't submit empty answer
+
+    answered = true;
+    clearTimer();
+
+    socket.emit("submit_answer", { answer: val });
+
+    // Disable input, show loading state
+    inp.disabled = true;
+    const btn = document.getElementById("submit-btn");
+    if (btn) {
+        btn.className = "btn btn-disabled";
+        btn.textContent = "Submitted...";
+    }
+}
+
+/**
+ * Show feedback after answering
+ * correct: true/false/null
+ * correctAnswer: the correct answer (comes from server)
+ * timedOut: whether time ran out
+ */
+function showAnswerFeedback(correct, correctAnswer, timedOut = false) {
+    clearTimer();
+
+    let pillHtml = "";
+    if (timedOut) {
+        pillHtml = `<div class="result-pill wrong">Time's Up!</div>`;
+    } else if (correct === true) {
+        pillHtml = `<div class="result-pill correct">Correct!</div>`;
+    } else if (correct === false) {
+        pillHtml = `<div class="result-pill wrong">Wrong Answer</div>`;
+    }
+
+    const ansHtml = correctAnswer
+        ? `<div class="correct-ans">Correct answer: <strong>${escHtml(correctAnswer)}</strong></div>`
+        : "";
+
+    document.getElementById("main-area").innerHTML = `
+        <div class="status-view">
+            ${pillHtml}
+            ${ansHtml}
+            <div class="status-title" style="margin-top:0.5rem">Next question is on its way...</div>
+            <div class="status-sub">Please wait a moment</div>
+        </div>
+    `;
+}
+
+/**
+ * Show final results screen
+ * scores: array of {name, score, total}
+ * total: total questions
+ */
+function showFinalResults(scores, total) {
+    const myEntry   = scores.find(s => s.name === PLAYER_NAME);
+    const myScore   = myEntry ? myEntry.score : 0;
+    const myRank    = scores.findIndex(s => s.name === PLAYER_NAME) + 1;
+    const pct       = total > 0 ? Math.round((myScore / total) * 100) : 0;
+
+    let verdict = "";
+    if (pct === 100)    verdict = "Perfect Score!";
+    else if (pct >= 80) verdict = "Excellent!";
+    else if (pct >= 60) verdict = "Good job!";
+    else                verdict = "Better luck next time!";
+
+    // Build leaderboard rows
+    const rowsHtml = scores.slice(0, 8).map((s, i) => {
+        const isMe = s.name === PLAYER_NAME;
+        return `
+            <div class="lb-row ${isMe ? 'me' : ''}">
+                <div class="lb-rank">#${i + 1}</div>
+                <div class="lb-name">${escHtml(s.name)}${isMe ? ' (You)' : ''}</div>
+                <div class="lb-score">${s.score}/${total}</div>
+            </div>
+        `;
+    }).join("");
+
+    document.getElementById("main-area").innerHTML = `
+        <div class="final-view">
+            <div class="final-score">${myScore}/${total}</div>
+            <div class="final-label">${pct}% · Rank #${myRank}</div>
+            <div class="final-verdict">${verdict}</div>
+
+            ${scores.length > 0 ? `
+            <div class="leaderboard">
+                <div class="lb-title">Leaderboard</div>
+                ${rowsHtml}
+            </div>` : ""}
+        </div>
+    `;
+}
+
+/**
+ * XSS protection — don't put user input directly in innerHTML
+ * This function encodes special HTML characters
+ */
+function escHtml(str) {
+    if (!str) return "";
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+</script>
+
+</body>
+</html>
