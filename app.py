@@ -1,7 +1,6 @@
 import ssl
 import socket
 import threading
-import time
 from flask import Flask, render_template, request, session, redirect, url_for
 from flask_socketio import SocketIO, emit
 from collections import defaultdict
@@ -21,8 +20,12 @@ client_states = {}
 lock = threading.Lock()
 
 QUESTION_DURATION = 10
-quiz_start_time = None
+quiz_running = False
+quiz_completed_flag = False
 
+# ✅ NEW GLOBALS
+current_question_index = -1
+answered_clients = set()
 
 # 🔐 GET LOCAL IP
 def get_local_ip():
@@ -74,52 +77,59 @@ def server_dashboard():
 # 👤 JOIN
 @socketio.on("join_quiz")
 def join(data):
-    global quiz_start_time
+    global current_question_index, quiz_running, quiz_completed_flag
 
     name = data.get("name", "Player")
     sid = request.sid
 
     with lock:
         scores[sid] = 0
-        client_states[sid] = {"name": name}
+        client_states[sid] = {
+            "name": name,
+            "current_q": -1
+        }
 
     socketio.emit("client_joined", {"name": name, "score": 0}, namespace="/server")
 
-    # 🔥 AUTO START IF FIRST USER
-    if quiz_start_time is None:
-        quiz_start_time = time.time()
+    # START QUIZ ONLY ONCE
+    if not quiz_running and not quiz_completed_flag:
+        quiz_running = True
         socketio.start_background_task(run_quiz)
 
-    # 🔥 LATE JOIN SYNC
-    elapsed = time.time() - quiz_start_time
-    q_index = int(elapsed // QUESTION_DURATION)
-
-    if q_index < len(questions):
-        remaining = QUESTION_DURATION - (elapsed % QUESTION_DURATION)
+    # SEND CURRENT QUESTION IF RUNNING
+    if current_question_index >= 0 and current_question_index < len(questions):
+        q = questions[current_question_index]
 
         emit("all_clients_next", {
-            "number": q_index + 1,
-            "question": questions[q_index]["question"],
-            "time_left": int(remaining)
+            "number": current_question_index + 1,
+            "question": q["question"],
+            "time_left": QUESTION_DURATION
         })
-
 
 # 📝 ANSWER
 @socketio.on("submit_answer")
 def handle_answer(data):
+    global answered_clients
+
     sid = request.sid
     ans = data.get("answer", "").lower().strip()
 
-    if sid not in client_states or quiz_start_time is None:
+    if sid not in client_states:
         return
 
-    elapsed = time.time() - quiz_start_time
-    q_index = int(elapsed // QUESTION_DURATION)
-
-    if q_index >= len(questions):
+    # prevent multiple answers
+    if sid in answered_clients:
         return
 
-    correct = questions[q_index]["answer"].lower().strip()
+    user_q = client_states[sid]["current_q"]
+
+    # if invalid question
+    if user_q == -1 or user_q >= len(questions):
+        return
+
+    answered_clients.add(sid)
+
+    correct = questions[user_q]["answer"].lower().strip()
 
     if ans == correct:
         scores[sid] += 1
@@ -129,42 +139,49 @@ def handle_answer(data):
         "score": scores[sid]
     }
 
-    socketio.emit("score_update", response, namespace="/", broadcast=True)
-    socketio.emit("score_update", response, namespace="/server", broadcast=True)
+    socketio.emit("score_update", response)
+    socketio.emit("score_update", response, namespace="/server")
 
 
-# 🚀 MANUAL START ALSO WORKS
+# 🚀 START QUIZ
 @socketio.on("start_quiz", namespace="/server")
 def start_quiz():
-    global quiz_start_time
-
-    quiz_start_time = time.time()
     socketio.start_background_task(run_quiz)
 
-
-# ⏱️ AUTO QUIZ LOOP
 def run_quiz():
+    global current_question_index, answered_clients, quiz_running, quiz_completed_flag
+
     total = len(questions)
 
     for q_index in range(total):
-        if quiz_start_time is None:
-            break
+        current_question_index = q_index
+        answered_clients = set()
 
         q = questions[q_index]
 
-        #send question
+        # ✅ SEND QUESTION TO ALL CLIENTS
         socketio.emit("all_clients_next", {
             "number": q_index + 1,
             "question": q["question"],
             "time_left": QUESTION_DURATION
         }, namespace="/")
 
-        #wait EXACT duration
-        socketio.sleep(QUESTION_DURATION)
+        # ✅ VERY IMPORTANT: track question per user
+        for sid in client_states:
+            client_states[sid]["current_q"] = q_index
 
-    #after all questions
+        # ⏱️ TIMER LOOP
+        for _ in range(QUESTION_DURATION):
+            socketio.sleep(1)
+
+    # ✅ QUIZ COMPLETED
     socketio.emit("quiz_completed", {}, namespace="/")
 
+    # ✅ RESET STATE
+    current_question_index = -1
+    answered_clients = set()
+    quiz_running = False
+    quiz_completed_flag = True
 # ❌ DISCONNECT
 @socketio.on("disconnect")
 def disconnect():
@@ -177,7 +194,7 @@ def disconnect():
 
         socketio.emit("client_left", {"name": name}, namespace="/server")
 
-# 🚀 MAIN (UNCHANGED PRINTS)
+# 🚀 MAIN (UNCHANGED)
 if __name__ == "__main__":
     local_ip = get_local_ip()
 

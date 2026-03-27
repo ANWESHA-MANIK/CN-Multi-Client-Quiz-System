@@ -82,7 +82,6 @@
             line-height: 1.4;
         }
 
-        /* 🔥 TIMER STYLE */
         #timer {
             font-size: 2.2rem;
             font-weight: 800;
@@ -149,27 +148,28 @@
 <script>
 const socket = io(window.location.origin);
 const playerName = "{{ name }}";
+
 let timerInterval;
+let answered = false;
 
 socket.on("connect", () => {
     socket.emit("join_quiz", { name: playerName });
 });
 
-// 🔥 QUESTION + TIMER
 socket.on("all_clients_next", (data) => {
+    answered = false;
     renderQuestion(data);
     startTimer(data.time_left || 10);
 });
 
-// 🔥 SCORE UPDATE
 socket.on("score_update", (data) => {
-    if (data.name === playerName) {
-        document.getElementById("current-score").textContent = data.score;
-    }
+    document.getElementById("current-score").textContent = data.score;
 });
 
-// 🔥 QUIZ END
+// 🔥 FIXED
 socket.on("quiz_completed", () => {
+    clearInterval(timerInterval);
+    answered = true;
     showFinal();
 });
 
@@ -192,7 +192,6 @@ function renderQuestion(data) {
     document.getElementById("ans-input").focus();
 }
 
-// ⏱️ TIMER
 function startTimer(time) {
     clearInterval(timerInterval);
 
@@ -206,53 +205,42 @@ function startTimer(time) {
         if (timerEl) {
             timerEl.innerText = t + "s";
 
-            // 🎨 color changes
-            if (t > 5) timerEl.style.color = "#4ade80";     // green
-            else if (t > 2) timerEl.style.color = "#facc15"; // yellow
-            else timerEl.style.color = "#f87171";           // red
+            if (t > 5) timerEl.style.color = "#4ade80";
+            else if (t > 2) timerEl.style.color = "#facc15";
+            else timerEl.style.color = "#f87171";
         }
 
-        if (t <= 0) {
+        if (t <= 0 && !answered) {
             clearInterval(timerInterval);
 
+            answered = true;
+
             const input = document.getElementById("ans-input");
-            const btn = document.getElementById("submit-btn");
+            let val = input && input.value ? input.value : "__NO_ANSWER__";
 
-            let val = "";
-            if (input) val = input.value;
-
-            //AUTO SUBMIT
             socket.emit("submit_answer", { answer: val });
 
-            //disable after submit
             if (input) input.disabled = true;
-            if (btn) btn.disabled = true;
 
-            //small delay to avoid UI conflict
-            setTimeout(() => {
-                const quizArea = document.getElementById("quiz-area");
-                if (quizArea) {
-                    quizArea.innerHTML = `
-                        <button disabled>Time's Up! Answer Submitted</button>
-                        <div class="status-msg">
-                            <p>Waiting for next question...</p>
-                        </div>
-                    `;
-                }
-            }, 200);
+            document.getElementById("quiz-area").innerHTML = `
+                <button disabled>Time's Up! Answer Submitted</button>
+                <div class="status-msg">
+                    <p>Waiting for next question...</p>
+                </div>
+            `;
         }
 
     }, 1000);
 }
 
-//SUBMIT
 function submitAnswer() {
+    if (answered) return;
+    answered = true;
+
     const val = document.getElementById("ans-input").value;
     if (!val.trim()) return;
 
     socket.emit("submit_answer", { answer: val });
-
-    document.getElementById("submit-btn").disabled = true;
 
     document.getElementById('quiz-area').innerHTML = `
         <button disabled>Answer Submitted</button>
@@ -262,7 +250,6 @@ function submitAnswer() {
     `;
 }
 
-// 🎯 FINAL
 function showFinal() {
     document.getElementById('quiz-area').innerHTML = `
         <div class="status-msg result-screen">
